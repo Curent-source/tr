@@ -1,0 +1,49 @@
+version: '2.1'
+
+orbs:
+  node: circleci/node@5.3.0
+  github-utils: trustedshops-public/github-utils@1.2.0
+
+jobs:
+  build:
+    executor: node/default
+    steps:
+      - checkout
+      - node/install-packages:
+          pkg-manager: yarn
+      - run:
+          name: Build with vite
+          command: yarn run build
+      - persist_to_workspace:
+          root: .
+          paths:
+            - build/
+  deploy:
+    executor: node/default
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: Enrich build
+          command: |
+            echo "opensource.trustedshops.com" > build/CNAME
+            echo "" > build/.nojekyll
+      - github-utils/publish_github_pages:
+          folder: build/
+          git_commit_author_email: "no-reply@trustedshops.com"
+          git_commit_author_name: "trustedshops-public-cns-bot"
+
+workflows:
+  main:
+    jobs:
+      - build
+      - deploy:
+          context:
+            - semantic-release
+          requires:
+            - build
+          filters:
+            branches:
+              only:
+                - main
